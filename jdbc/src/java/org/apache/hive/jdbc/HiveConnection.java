@@ -363,8 +363,18 @@ public class HiveConnection implements java.sql.Connection {
           entry.getValue());
       }
     }
+    if(isCustomAuthMode()){
+      String className = sessConfMap.get(JdbcConnectionParams.AUTH_CUSTOM_INTERCEPTOR);
+      try {
+        Class<?> userRequestInterceptorClass = Class.forName(className);
+        requestInterceptor = (HttpRequestInterceptor)userRequestInterceptorClass.newInstance();
+
+      } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
+        throw new SQLException("Could not add user passed in http interceptor: " + className, e);
+      }
+    }
     // Configure http client for kerberos/password based authentication
-    if (isKerberosAuthMode()) {
+    else if (isKerberosAuthMode()) {
       /**
        * Add an interceptor which sets the appropriate header in the request.
        * It does the kerberos authentication and get the final service ticket,
@@ -722,6 +732,10 @@ public class HiveConnection implements java.sql.Connection {
   private boolean isKerberosAuthMode() {
     return !JdbcConnectionParams.AUTH_SIMPLE.equals(sessConfMap.get(JdbcConnectionParams.AUTH_TYPE))
         && sessConfMap.containsKey(JdbcConnectionParams.AUTH_PRINCIPAL);
+  }
+
+  private boolean isCustomAuthMode() {
+    return sessConfMap.containsKey(JdbcConnectionParams.AUTH_CUSTOM_INTERCEPTOR);
   }
 
   private boolean isHttpTransportMode() {
